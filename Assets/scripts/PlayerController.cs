@@ -181,12 +181,9 @@ public class PlayerController : MonoBehaviour
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        _stepsSinceLastAction++;
-        if (_stepsSinceLastAction >= _actionStepInterval){
-            UpdatePlayerForceFromInput();// On n'appelle plus ApplyTableSurfaceFriction() car on gère l'arrêt directement ci-dessous
-        }
+        UpdatePlayerForceFromInput();
     }
-    
+
     private void UpdatePlayerForceFromInput()
     {
         // GetAxisRaw renvoie -1, 0 ou 1 instantanément (sans délai)
