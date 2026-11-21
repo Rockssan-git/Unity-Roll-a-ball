@@ -21,6 +21,10 @@ public class PlayerController : MonoBehaviour
     public Collider GroundCollider;    // Le sol du plateau
     public float SpawnRange = 7f;      // Zone de spawn aléatoire
     private bool _hasFallenInHole = false;
+    // Niveau 4 : Saut
+    public bool CanJump = false;      // À cocher uniquement dans Level4 et suivants
+    public float JumpForce = 7f;      // Puissance du saut
+    private bool _isGrounded = true;  // Vérifie si la boule touche le sol
     //rock1
     private Rigidbody _player;
 
@@ -30,9 +34,6 @@ public class PlayerController : MonoBehaviour
     private GameObject[] _allPickups;
     private Color _winTextColor;
 
-    // discretize time action
-    [SerializeField] private int _actionStepInterval = 100;   // 100 × 0.02 s = 2 s
-    private int _stepsSinceLastAction;
 
 
 
@@ -80,6 +81,26 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKey(KeyCode.R))
         {
             Reset();
+        }
+
+        // Saut avec la touche Espace
+        if (CanJump == true && Input.GetKeyDown(KeyCode.Space) && _isGrounded == true)
+        {
+            _player.linearVelocity = new Vector3(_player.linearVelocity.x, JumpForce, _player.linearVelocity.z);
+            _isGrounded = false;
+        }
+
+        // Si le joueur tombe dans le vide (sans être tombé dans le trou)
+        if (transform.position.y < -10f && _hasFallenInHole == false)
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+    }
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            _isGrounded = true;
         }
     }
 
@@ -195,7 +216,7 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
             _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
-            _stepsSinceLastAction = 0;
+
         }
         else
         {
