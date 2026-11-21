@@ -1,4 +1,5 @@
-﻿using System;
+﻿using UnityEngine.SceneManagement;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +14,13 @@ public class PlayerController : MonoBehaviour
     public float TableFriction = 5F;
     public float FrictionRampSpeed = 1F;
     public float FrictionRamp = 2.5F;
-
+    //rock1
+    // Variables pour le Niveau 1
+    public GameObject Hole;            // Le trou
+    public Collider GroundCollider;    // Le sol du plateau
+    public float SpawnRange = 7f;      // Zone de spawn aléatoire
+    private bool _hasFallenInHole = false;
+    //rock1
     private Rigidbody _player;
 
     // Use this for initialization
@@ -21,17 +28,33 @@ public class PlayerController : MonoBehaviour
     private Vector3 _playerStart;
     private GameObject[] _allPickups;
     private Color _winTextColor;
-
+    //rock2
     private void Start()
     {
         _player = GetComponent<Rigidbody>();
-        _playerStart = _player.position;
         Log("Player created");
         _allPickups = GameObject.FindGameObjectsWithTag("pickup");
         _winTextColor = WinText.color;
         HideWinText();
+
+        // On place le joueur au hasard et on cache le trou au début
+        SpawnPlayerRandomly();
+        if (Hole != null)
+        {
+            Hole.SetActive(false);
+        }
     }
 
+    private void SpawnPlayerRandomly()
+    {
+        float randomX = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+        float randomZ = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+
+        _playerStart = new Vector3(randomX, 0.5f, randomZ);
+        _player.position = _playerStart;
+        _player.linearVelocity = Vector3.zero;
+    }
+    //rock2
     private void HideWinText()
     {
         WinText.color = new Color(0, 0, 0, 0);
@@ -51,29 +74,66 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //rock3
     private void Reset()
     {
         _score = 0;
-        _player.linearVelocity = new Vector3(0, 0, 0);
-        _player.position = _playerStart;
-        foreach (var pickup in _allPickups)
+        _hasFallenInHole = false;
+
+        // On réactive le sol et on recache le trou
+        if (GroundCollider != null)
+        {
+            GroundCollider.enabled = true;
+        }
+        if (Hole != null)
+        {
+            Hole.SetActive(false);
+        }
+
+        SpawnPlayerRandomly();
+        foreach (GameObject pickup in _allPickups)
         {
             pickup.SetActive(true);
         }
         UpdateScoreDisplay();
         HideWinText();
     }
+    //rock3
 
+    //rock4
     void OnTriggerEnter(Collider other)
     {
-        var gameObject = other.gameObject;
-        Log("Colliding with: {0}", gameObject.tag);
-        if (gameObject.CompareTag("pickup"))
+        GameObject hitObject = other.gameObject;
+        Log("Colliding with: {0}", hitObject.tag);
+
+        if (hitObject.CompareTag("pickup"))
         {
             IncrementScore();
-            gameObject.SetActive(false);
+            hitObject.SetActive(false);
+        }
+        else if (hitObject.CompareTag("Hole") && _hasFallenInHole == false)
+        {
+            _hasFallenInHole = true;
+
+            // On désactive le sol pour laisser tomber la boule
+            if (GroundCollider != null)
+            {
+                GroundCollider.enabled = false;
+            }
+            ShowWinText();
+            Invoke("LoadNextLevel", 1.5f); // Attend 1.5 seconde de chute puis charge le niveau suivant
+
+}
+    }
+    private void LoadNextLevel()
+    {
+        int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
+        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
+        {
+            SceneManager.LoadScene(nextSceneIndex);
         }
     }
+    //rock4
 
     private void IncrementScore()
     {
@@ -81,32 +141,70 @@ public class PlayerController : MonoBehaviour
         UpdateScoreDisplay();
     }
 
+    //rock5
     private void UpdateScoreDisplay()
     {
-        if (ScoreText)
+        if (ScoreText != null)
         {
-            ScoreText.text = string.Format("Score: {0}", _score);
+            ScoreText.text = "Score: " + _score;
             if (_score == _allPickups.Length)
             {
-                ShowWinText();
+                SpawnHole();
             }
         }
     }
 
+    private void SpawnHole()
+    {
+        if (Hole != null && Hole.activeSelf == false)
+        {
+            float randomX = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+            float randomZ = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+
+            Hole.transform.position = new Vector3(randomX, 0.01f, randomZ);
+            Hole.SetActive(true);
+            Log("Le trou est apparu !");
+        }
+    }
+    //rock5
+
+    // also called once per frame but guaranteed to be called last
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        UpdatePlayerForceFromInput();
-        ApplyTableSurfaceFriction();
+        UpdatePlayerForceFromInput();// On n'appelle plus ApplyTableSurfaceFriction() car on gère l'arrêt directement ci-dessous
     }
 
     private void UpdatePlayerForceFromInput()
     {
-        var moveX = Input.GetAxis(HORIZONTAL_AXIS);
-        var moveY = Input.GetAxis(VERTICAL_AXIS);
+        // GetAxisRaw renvoie -1, 0 ou 1 instantanément (sans délai)
+        float moveX = Input.GetAxisRaw(HORIZONTAL_AXIS);
+        float moveZ = Input.GetAxisRaw(VERTICAL_AXIS);
 
-        var force = new Vector3(moveX, 0, moveY);
-        _player.AddForce(Speed * force);
+        // Si le joueur appuie et maintient une touche de déplacement
+        if (moveX != 0 || moveZ != 0)
+        {
+            Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
+            _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
+        }
+        else
+        {
+            // Si le joueur relâche les touches : on décélère rapidement jusqu'à l'arrêt
+            float vx = _player.linearVelocity.x * 0.8f;
+            float vz = _player.linearVelocity.z * 0.8f;
+
+            // Dès que la vitesse devient très faible, on l'arrête net
+            if (Mathf.Abs(vx) < 0.1f)
+            {
+                vx = 0f;
+            }
+            if (Mathf.Abs(vz) < 0.1f)
+            {
+                vz = 0f;
+            }
+
+            _player.linearVelocity = new Vector3(vx, _player.linearVelocity.y, vz);
+        }
     }
 
     private void ApplyTableSurfaceFriction()
