@@ -28,6 +28,13 @@ public class PlayerController : MonoBehaviour
     private Vector3 _playerStart;
     private GameObject[] _allPickups;
     private Color _winTextColor;
+
+    // discretize time action
+    [SerializeField] private int _actionStepInterval = 100;   // 100 × 0.02 s = 2 s
+    private int _stepsSinceLastAction;
+
+
+
     //rock2
     private void Start()
     {
@@ -172,20 +179,24 @@ public class PlayerController : MonoBehaviour
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        UpdatePlayerForceFromInput();// On n'appelle plus ApplyTableSurfaceFriction() car on gère l'arrêt directement ci-dessous
+        _stepsSinceLastAction++;
+        if (_stepsSinceLastAction >= _actionStepInterval){
+            UpdatePlayerForceFromInput();// On n'appelle plus ApplyTableSurfaceFriction() car on gère l'arrêt directement ci-dessous
+        }
     }
-
+    
     private void UpdatePlayerForceFromInput()
     {
         // GetAxisRaw renvoie -1, 0 ou 1 instantanément (sans délai)
         float moveX = Input.GetAxisRaw(HORIZONTAL_AXIS);
         float moveZ = Input.GetAxisRaw(VERTICAL_AXIS);
 
-        // Si le joueur appuie et maintient une touche de déplacement
+        // Si le joueur appuie ou maintient une touche de déplacement
         if (moveX != 0 || moveZ != 0)
         {
             Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
             _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
+            _stepsSinceLastAction = 0;
         }
         else
         {
