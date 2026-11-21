@@ -13,7 +13,13 @@ public class PlayerController : MonoBehaviour
     public float TableFriction = 5F;
     public float FrictionRampSpeed = 1F;
     public float FrictionRamp = 2.5F;
-
+    //rock1
+    // Variables pour le Niveau 1
+    public GameObject Hole;            // Le trou
+    public Collider GroundCollider;    // Le sol du plateau
+    public float SpawnRange = 7f;      // Zone de spawn aléatoire
+    private bool _hasFallenInHole = false;
+    //rock1
     private Rigidbody _player;
 
     // Use this for initialization
@@ -21,17 +27,33 @@ public class PlayerController : MonoBehaviour
     private Vector3 _playerStart;
     private GameObject[] _allPickups;
     private Color _winTextColor;
-
+    //rock2
     private void Start()
     {
         _player = GetComponent<Rigidbody>();
-        _playerStart = _player.position;
         Log("Player created");
         _allPickups = GameObject.FindGameObjectsWithTag("pickup");
         _winTextColor = WinText.color;
         HideWinText();
+
+        // On place le joueur au hasard et on cache le trou au début
+        SpawnPlayerRandomly();
+        if (Hole != null)
+        {
+            Hole.SetActive(false);
+        }
     }
 
+    private void SpawnPlayerRandomly()
+    {
+        float randomX = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+        float randomZ = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+
+        _playerStart = new Vector3(randomX, 0.5f, randomZ);
+        _player.position = _playerStart;
+        _player.linearVelocity = Vector3.zero;
+    }
+    //rock2
     private void HideWinText()
     {
         WinText.color = new Color(0, 0, 0, 0);
@@ -51,29 +73,56 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //rock3
     private void Reset()
     {
         _score = 0;
-        _player.linearVelocity = new Vector3(0, 0, 0);
-        _player.position = _playerStart;
-        foreach (var pickup in _allPickups)
+        _hasFallenInHole = false;
+
+        // On réactive le sol et on recache le trou
+        if (GroundCollider != null)
+        {
+            GroundCollider.enabled = true;
+        }
+        if (Hole != null)
+        {
+            Hole.SetActive(false);
+        }
+
+        SpawnPlayerRandomly();
+        foreach (GameObject pickup in _allPickups)
         {
             pickup.SetActive(true);
         }
         UpdateScoreDisplay();
         HideWinText();
     }
+    //rock3
 
+    //rock4
     void OnTriggerEnter(Collider other)
     {
-        var gameObject = other.gameObject;
-        Log("Colliding with: {0}", gameObject.tag);
-        if (gameObject.CompareTag("pickup"))
+        GameObject hitObject = other.gameObject;
+        Log("Colliding with: {0}", hitObject.tag);
+
+        if (hitObject.CompareTag("pickup"))
         {
             IncrementScore();
-            gameObject.SetActive(false);
+            hitObject.SetActive(false);
+        }
+        else if (hitObject.CompareTag("Hole") && _hasFallenInHole == false)
+        {
+            _hasFallenInHole = true;
+
+            // On désactive le sol pour laisser tomber la boule
+            if (GroundCollider != null)
+            {
+                GroundCollider.enabled = false;
+            }
+            ShowWinText();
         }
     }
+    //rock4
 
     private void IncrementScore()
     {
@@ -81,17 +130,32 @@ public class PlayerController : MonoBehaviour
         UpdateScoreDisplay();
     }
 
+    //rock5
     private void UpdateScoreDisplay()
     {
-        if (ScoreText)
+        if (ScoreText != null)
         {
-            ScoreText.text = string.Format("Score: {0}", _score);
+            ScoreText.text = "Score: " + _score;
             if (_score == _allPickups.Length)
             {
-                ShowWinText();
+                SpawnHole();
             }
         }
     }
+
+    private void SpawnHole()
+    {
+        if (Hole != null && Hole.activeSelf == false)
+        {
+            float randomX = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+            float randomZ = UnityEngine.Random.Range(-SpawnRange, SpawnRange);
+
+            Hole.transform.position = new Vector3(randomX, 0.01f, randomZ);
+            Hole.SetActive(true);
+            Log("Le trou est apparu !");
+        }
+    }
+    //rock5
 
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
