@@ -1,4 +1,5 @@
-﻿using System;
+﻿using UnityEngine.SceneManagement;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -120,6 +121,16 @@ public class PlayerController : MonoBehaviour
                 GroundCollider.enabled = false;
             }
             ShowWinText();
+            Invoke("LoadNextLevel", 1.5f); // Attend 1.5 seconde de chute puis charge le niveau suivant
+
+}
+    }
+    private void LoadNextLevel()
+    {
+        int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
+        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
+        {
+            SceneManager.LoadScene(nextSceneIndex);
         }
     }
     //rock4
@@ -158,19 +169,42 @@ public class PlayerController : MonoBehaviour
     //rock5
 
     // also called once per frame but guaranteed to be called last
+    // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        UpdatePlayerForceFromInput();
-        ApplyTableSurfaceFriction();
+        UpdatePlayerForceFromInput();// On n'appelle plus ApplyTableSurfaceFriction() car on gère l'arrêt directement ci-dessous
     }
 
     private void UpdatePlayerForceFromInput()
     {
-        var moveX = Input.GetAxis(HORIZONTAL_AXIS);
-        var moveY = Input.GetAxis(VERTICAL_AXIS);
+        // GetAxisRaw renvoie -1, 0 ou 1 instantanément (sans délai)
+        float moveX = Input.GetAxisRaw(HORIZONTAL_AXIS);
+        float moveZ = Input.GetAxisRaw(VERTICAL_AXIS);
 
-        var force = new Vector3(moveX, 0, moveY);
-        _player.AddForce(Speed * force);
+        // Si le joueur appuie et maintient une touche de déplacement
+        if (moveX != 0 || moveZ != 0)
+        {
+            Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
+            _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
+        }
+        else
+        {
+            // Si le joueur relâche les touches : on décélère rapidement jusqu'à l'arrêt
+            float vx = _player.linearVelocity.x * 0.8f;
+            float vz = _player.linearVelocity.z * 0.8f;
+
+            // Dès que la vitesse devient très faible, on l'arrête net
+            if (Mathf.Abs(vx) < 0.1f)
+            {
+                vx = 0f;
+            }
+            if (Mathf.Abs(vz) < 0.1f)
+            {
+                vz = 0f;
+            }
+
+            _player.linearVelocity = new Vector3(vx, _player.linearVelocity.y, vz);
+        }
     }
 
     private void ApplyTableSurfaceFriction()
