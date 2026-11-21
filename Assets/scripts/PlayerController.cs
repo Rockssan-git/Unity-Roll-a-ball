@@ -54,7 +54,7 @@ public class PlayerController : MonoBehaviour
     private void Reset()
     {
         _score = 0;
-        _player.velocity = new Vector3(0, 0, 0);
+        _player.linearVelocity = new Vector3(0, 0, 0);
         _player.position = _playerStart;
         foreach (var pickup in _allPickups)
         {
@@ -111,7 +111,7 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyTableSurfaceFriction()
     {
-        var velocity = _player.velocity;
+        var velocity = _player.linearVelocity;
         var decelX = GetDecellerationFor(velocity.x);
         var decelZ = GetDecellerationFor(velocity.z);
         _player.AddForce(new Vector3(decelX, 0, decelZ));
