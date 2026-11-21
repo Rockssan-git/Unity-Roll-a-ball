@@ -16,6 +16,7 @@ public class PlayerController : MonoBehaviour
     public float FrictionRamp = 2.5F;
     //rock1
     // Variables pour le Niveau 1
+    private float _baseSpeed;
     public GameObject Hole;            // Le trou
     public Collider GroundCollider;    // Le sol du plateau
     public float SpawnRange = 7f;      // Zone de spawn aléatoire
@@ -32,6 +33,7 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         _player = GetComponent<Rigidbody>();
+        _baseSpeed = Speed;
         Log("Player created");
         _allPickups = GameObject.FindGameObjectsWithTag("pickup");
         _winTextColor = WinText.color;
@@ -227,5 +229,17 @@ public class PlayerController : MonoBehaviour
         var direction = f < 0 ? 1 : -1; // should oppose the current movement
         var max = (float)(TableFriction * direction * situationMultiplier * 0.1);
         return Math.Abs(max) < absoluteForce ? -1 * absoluteForce : max;
+    }
+    // Niveau 3 : modifier temporairement la vitesse du joueur
+    public void ChangeSpeed(float multiplier, float duration)
+    {
+        Speed = _baseSpeed * multiplier;
+        CancelInvoke("ResetSpeed");
+        Invoke("ResetSpeed", duration);
+    }
+
+    private void ResetSpeed()
+    {
+        Speed = _baseSpeed;
     }
 }
