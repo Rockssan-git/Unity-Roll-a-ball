@@ -14,6 +14,11 @@ public class PlayerController : MonoBehaviour
     public float TableFriction = 5F;
     public float FrictionRampSpeed = 1F;
     public float FrictionRamp = 2.5F;
+
+    // dicrete decisions
+    private float _stepsSinceLastAction;
+    private float _actionStepInterval = 25; // 25 × 0.02 s = .5 s
+
     //rock1
     // Variables pour le Niveau 1
     private float _baseSpeed;
@@ -21,6 +26,8 @@ public class PlayerController : MonoBehaviour
     public Collider GroundCollider;    // Le sol du plateau
     public float SpawnRange = 7f;      // Zone de spawn aléatoire
     private bool _hasFallenInHole = false;
+
+
     // Niveau 4 : Saut
     public bool CanJump = false;      // À cocher uniquement dans Level4 et suivants
     public float JumpForce = 7f;      // Puissance du saut
@@ -151,17 +158,13 @@ public class PlayerController : MonoBehaviour
                 GroundCollider.enabled = false;
             }
             ShowWinText();
-            Invoke("LoadNextLevel", 1.5f); // Attend 1.5 seconde de chute puis charge le niveau suivant
+            Invoke("LoadQuestionnaire", 1.5f); // Attend 1.5 seconde de chute puis charge le niveau suivant
 
 }
     }
-    private void LoadNextLevel()
+    private void LoadQuestionnaire()
     {
-        int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
-        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
-        {
-            SceneManager.LoadScene(nextSceneIndex);
-        }
+        SceneManager.LoadScene("GameQuestionnaire");
     }
     //rock4
 
@@ -202,7 +205,12 @@ public class PlayerController : MonoBehaviour
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        UpdatePlayerForceFromInput();
+        _stepsSinceLastAction++;
+
+        if (_stepsSinceLastAction >= _actionStepInterval)
+        {
+            UpdatePlayerForceFromInput();
+        }
     }
 
     private void UpdatePlayerForceFromInput()
@@ -216,7 +224,7 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
             _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
-
+            _stepsSinceLastAction = 0;
         }
         else
         {

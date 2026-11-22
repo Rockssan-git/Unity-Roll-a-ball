@@ -1,15 +1,28 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public enum Language { EN, FR };
 
 public class MainManager : MonoBehaviour
 {
     public static MainManager Instance; // static = shared by all instances of this class
-    public Language CurrentLanguage { get; private set; } = Language.EN;
+    public Language CurrentLanguage { get; private set; } = Language.FR;
     
 
     public float questionnaireFreezeDuration = 1f;
+    private int currentLevel = 1;
+
+    [SerializeField] List<string> levelScenesNames;
+
+    public void LoadNextLevel()
+    {
+        currentLevel++;
+        if (currentLevel-1 < levelScenesNames.Count)
+        {
+            SceneManager.LoadScene(levelScenesNames[currentLevel-1]);
+        }
+    }
 
     
 

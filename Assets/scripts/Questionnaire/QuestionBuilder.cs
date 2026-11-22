@@ -157,10 +157,12 @@ public class QuestionBuilder : MonoBehaviour
         if (MainManager.Instance.CurrentLanguage == Language.EN)
         {
             questionLabel.text = "Thank you!";
+            MainManager.Instance.LoadNextLevel();
         }
         else
         {
             questionLabel.text = "Merci !";
+            MainManager.Instance.LoadNextLevel();
         }
         Debug.Log("[Questionnaire] Complete.");
 
