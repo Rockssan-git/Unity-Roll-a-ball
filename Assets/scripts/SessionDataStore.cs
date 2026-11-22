@@ -103,6 +103,8 @@ public class SessionDataStore : MonoBehaviour
     public void RecordStep(int stepId, Vector3 position, Vector3 velocity, Vector2 action,
                            int score, float cumulativeReward)
     {
+        Debug.Log("record step");
+
         if (CurrentEpisodeId < 0)
             StartEpisode();
 

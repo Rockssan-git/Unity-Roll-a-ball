@@ -7,7 +7,7 @@ using UnityEngine.UI;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
-using Unity.MLAgents.Policies;   // for BehaviorParameters
+using Unity.MLAgents.Policies; // for BehaviorParameters
 
 
 // ReSharper disable once CheckNamespace

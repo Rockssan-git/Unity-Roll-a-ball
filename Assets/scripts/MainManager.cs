@@ -13,7 +13,11 @@ public class MainManager : MonoBehaviour
     public float questionnaireFreezeDuration = 1f;
     private int currentLevel = 1;
 
-    [SerializeField] private List<string> levelScenesNames;
+    [SerializeField] private List<string> calibrationLevelScenesNames;
+
+    private bool _inFittedLevel;
+    [SerializeField] private List<string> candidateLevelScenesNames;
+
     [SerializeField] public bool allowSceneTransition;
 
     public void LoadNextLevel()
@@ -23,9 +27,14 @@ public class MainManager : MonoBehaviour
         }
 
         currentLevel++;
-        if (currentLevel-1 < levelScenesNames.Count)
+        if (currentLevel-1 < calibrationLevelScenesNames.Count)
         {
-            SceneManager.LoadScene(levelScenesNames[currentLevel-1]);
+            SceneManager.LoadScene(calibrationLevelScenesNames[currentLevel-1]);
+        }
+
+        if (currentLevel-1 == calibrationLevelScenesNames.Count)
+        {
+            // finish calibration and fit data to participant's fun
         }
     }
 
