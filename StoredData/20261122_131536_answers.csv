@@ -1,0 +1,4 @@
+questionnaire_id,question_index,question,answer,timestamp
+GameQuestionnaire,0,Dans quelle mesure tu as aimé jouer à ce jeu ?,plutôt en désaccord,2026-11-22T13:15:50.8089700+01:00
+GameQuestionnaire,1,Dans quelle mesure tu es motivé à jouer à ce jeu ?,d'accord,2026-11-22T13:15:52.4719720+01:00
+GameQuestionnaire,2,Dans quelle mesure tu es concentré dans ce jeu ?,d'accord,2026-11-22T13:15:54.0330510+01:00

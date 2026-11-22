@@ -1,0 +1,4 @@
+level,appreciation,motivation,concentration,fit_mode,n_sessions,level_source
+Level1,5.0,5.0,5.0,intercept_only,1,level_to_experience_dummy.csv
+Level2,5.0,5.0,5.0,intercept_only,1,level_to_experience_dummy.csv
+Level3,5.0,5.0,5.0,intercept_only,1,level_to_experience_dummy.csv
