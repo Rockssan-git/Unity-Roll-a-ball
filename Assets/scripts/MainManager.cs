@@ -13,10 +13,15 @@ public class MainManager : MonoBehaviour
     public float questionnaireFreezeDuration = 1f;
     private int currentLevel = 1;
 
-    [SerializeField] List<string> levelScenesNames;
+    [SerializeField] private List<string> levelScenesNames;
+    [SerializeField] public bool allowSceneTransition;
 
     public void LoadNextLevel()
     {
+        if (!allowSceneTransition){
+            return;
+        }
+
         currentLevel++;
         if (currentLevel-1 < levelScenesNames.Count)
         {

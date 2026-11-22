@@ -1,10 +1,17 @@
 ﻿using UnityEngine.SceneManagement;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Policies;   // for BehaviorParameters
+
+
 // ReSharper disable once CheckNamespace
-public class PlayerController : MonoBehaviour
+public class PlayerController : Agent
 {
     private const string VERTICAL_AXIS = "Vertical";
     private const string HORIZONTAL_AXIS = "Horizontal";
@@ -14,10 +21,6 @@ public class PlayerController : MonoBehaviour
     public float TableFriction = 5F;
     public float FrictionRampSpeed = 1F;
     public float FrictionRamp = 2.5F;
-
-    // dicrete decisions
-    private float _stepsSinceLastAction;
-    private float _actionStepInterval = 25; // 25 × 0.02 s = .5 s
 
     //rock1
     // Variables pour le Niveau 1
@@ -41,16 +44,42 @@ public class PlayerController : MonoBehaviour
     private GameObject[] _allPickups;
     private Color _winTextColor;
 
+    // use for automatic agent
+    private Vector3[] _allPickupsPositions;
+    private readonly Queue<Vector3> _trajectory = new Queue<Vector3>();
 
+    [SerializeField] private int _trajectoryLength = 25;    // number of past positions observed
+    [SerializeField] private int _obsStepInterval = 25;     // physics steps between two samples
+    private int _stepsSinceLastObs;
+
+    // for recording
+    private Vector2 _lastAction;
+
+
+    private void Awake()
+    {
+        // reset VectorObservationSize so that it matches the number of pickups of this level
+        int nPickups = GameObject.FindGameObjectsWithTag("pickup").Length;
+        var behavior = GetComponent<BehaviorParameters>();
+        behavior.BrainParameters.VectorObservationSize = 4 * nPickups + 3 * _trajectoryLength + 3;
+    }
 
 
     //rock2
-    private void Start()
+    // Agent.OnEnable (Initialize) → LazyInitialize → your OnEpisodeBegin → Reset → SpawnPlayerRandomly
+    public override void Initialize()
     {
         _player = GetComponent<Rigidbody>();
         _baseSpeed = Speed;
         Log("Player created");
         _allPickups = GameObject.FindGameObjectsWithTag("pickup");
+
+        _allPickupsPositions = new Vector3[_allPickups.Length];
+        for (int i = 0; i < _allPickups.Length; i++)
+        {
+            _allPickupsPositions[i] = _allPickups[i].transform.position;
+        }
+
         _winTextColor = WinText.color;
         HideWinText();
 
@@ -60,6 +89,9 @@ public class PlayerController : MonoBehaviour
         {
             Hole.SetActive(false);
         }
+
+        //
+        GetComponent<DecisionRequester>().DecisionPeriod = 25;
     }
 
     private void SpawnPlayerRandomly()
@@ -87,7 +119,7 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.R))
         {
-            Reset();
+            ResetGame();
         }
 
         // Saut avec la touche Espace
@@ -100,7 +132,7 @@ public class PlayerController : MonoBehaviour
         // Si le joueur tombe dans le vide (sans être tombé dans le trou)
         if (transform.position.y < -10f && _hasFallenInHole == false)
         {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            LoadQuestionnaire();
         }
     }
     private void OnCollisionEnter(Collision collision)
@@ -112,7 +144,7 @@ public class PlayerController : MonoBehaviour
     }
 
     //rock3
-    private void Reset()
+    private void ResetGame()
     {
         _score = 0;
         _hasFallenInHole = false;
@@ -134,6 +166,7 @@ public class PlayerController : MonoBehaviour
         }
         UpdateScoreDisplay();
         HideWinText();
+        ResetSpeed();
     }
     //rock3
 
@@ -160,17 +193,21 @@ public class PlayerController : MonoBehaviour
             ShowWinText();
             Invoke("LoadQuestionnaire", 1.5f); // Attend 1.5 seconde de chute puis charge le niveau suivant
 
-}
+        }
     }
     private void LoadQuestionnaire()
     {
-        SceneManager.LoadScene("GameQuestionnaire");
+        if (MainManager.Instance.allowSceneTransition)
+        {
+            SceneManager.LoadScene("GameQuestionnaire");
+        }
     }
     //rock4
 
     private void IncrementScore()
     {
         _score++;
+        AddReward(1f);
         UpdateScoreDisplay();
     }
 
@@ -205,11 +242,15 @@ public class PlayerController : MonoBehaviour
     // also called once per frame but guaranteed to be called last
     public void FixedUpdate()
     {
-        _stepsSinceLastAction++;
-
-        if (_stepsSinceLastAction >= _actionStepInterval)
+        // if ... for sampling player/ball positions
+        _stepsSinceLastObs++;
+        if (_stepsSinceLastObs >= _obsStepInterval)
         {
-            UpdatePlayerForceFromInput();
+            _stepsSinceLastObs = 0;
+            _trajectory.Enqueue(transform.localPosition);
+            SessionDataStore.Instance?.RecordStep(StepCount, transform.localPosition, _player.linearVelocity, _lastAction, _score, GetCumulativeReward());
+            while (_trajectory.Count > _trajectoryLength)
+                _trajectory.Dequeue();                     // keep only the most recent samples
         }
     }
 
@@ -224,7 +265,6 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 direction = new Vector3(moveX, 0, moveZ).normalized;// On déplace la boule tout en gardant sa vitesse Y (pour qu'elle puisse tomber dans le trou)
             _player.linearVelocity = new Vector3(direction.x * Speed, _player.linearVelocity.y, direction.z * Speed);
-            _stepsSinceLastAction = 0;
         }
         else
         {
@@ -278,5 +318,129 @@ public class PlayerController : MonoBehaviour
     private void ResetSpeed()
     {
         Speed = _baseSpeed;
+    }
+
+    ////////////////////////////////////////////////////////
+    /// Automatic agent components
+    //////////////////////////////////////////////////////// 
+
+
+    public override void OnEpisodeBegin()
+    {
+        SessionDataStore.Instance?.StartEpisode();
+
+        ResetGame();                                   // respawn ball, pickups, score, hole
+        _trajectory.Clear();
+        for (int i = 0; i < _trajectoryLength; i++)
+            _trajectory.Enqueue(transform.localPosition);
+        _stepsSinceLastObs = 0;
+    }
+
+    // should return list of goals coordinates + trajectory of states
+    // trajectory includes current state (last state). 
+    // Take this and filter in Python if required to get only current state
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        // Pickups: position + whether still collectable (4 floats each)
+        foreach (GameObject pickup in _allPickups)
+        {
+            if (pickup == null) // destroyed (scene unloading)
+            {
+                sensor.AddObservation(Vector3.zero);
+                sensor.AddObservation(0f);
+                continue;
+            }
+
+            sensor.AddObservation(pickup.transform.localPosition);
+            sensor.AddObservation(pickup.activeSelf ? 1f : 0f);
+        }
+
+        // Past positions, oldest first, padded to a fixed length (3 floats each)
+        Vector3[] past = _trajectory.ToArray();
+        foreach (Vector3 p in past)
+            sensor.AddObservation(p);
+
+        // Current position, always last
+        sensor.AddObservation(transform.localPosition);
+    }
+
+    // Heuristic controller gains (tune in the Inspector)
+    [SerializeField] private float _heuristicGain = 1f;      // how strongly to push toward the target
+    [SerializeField] private float _heuristicDamping = 0.5f; // how strongly to resist current velocity
+
+    private Transform FindNearestPickup()
+    {
+        Transform nearest = null;
+        float minimumDistance = float.MaxValue;
+
+        foreach (GameObject pickup in _allPickups)
+        {
+            if (pickup == null || !pickup.activeInHierarchy)
+                continue;
+
+            float distance = Vector3.Distance(transform.position, pickup.transform.position);
+            if (distance < minimumDistance)
+            {
+                minimumDistance = distance;
+                nearest = pickup.transform;
+            }
+        }
+        return nearest;
+    }
+
+    // Nearest remaining pickup, or the hole once every pickup is collected
+    private Transform FindTarget()
+    {
+        Transform pickup = FindNearestPickup();
+        if (pickup != null)
+            return pickup;
+        if (Hole != null && Hole.activeInHierarchy)
+            return Hole.transform;
+        return null;
+    }
+
+    [SerializeField] private bool _manualControl = true;   // keyboard if true, automatic controller if false
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var actions = actionsOut.ContinuousActions;
+        actions[0] = 0f;
+        actions[1] = 0f;
+
+        if (_hasFallenInHole || _player == null)
+            return;
+
+        if (_manualControl)
+        {
+            actions[0] = Input.GetAxisRaw(HORIZONTAL_AXIS);   // A/D or ←/→ : -1, 0 or 1
+            actions[1] = Input.GetAxisRaw(VERTICAL_AXIS);     // S/W or ↓/↑
+            return;
+        }
+
+        // Automatic controller (unchanged)
+        Transform target = FindTarget();
+        if (target == null)
+            return;
+
+        Vector3 direction = target.position - transform.position;
+        actions[0] = Mathf.Clamp(direction.x * _heuristicGain - _player.linearVelocity.x * _heuristicDamping, -1f, 1f);
+        actions[1] = Mathf.Clamp(direction.z * _heuristicGain - _player.linearVelocity.z * _heuristicDamping, -1f, 1f);
+        Debug.DrawLine(transform.position, target.position, Color.green);
+    }
+
+    // Applies actions from the heuristic or from the trained model
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        if (_hasFallenInHole)
+            return;
+
+        var a = actions.ContinuousActions;
+        _lastAction = new Vector2(a[0], a[1]);
+        _player.AddForce(new Vector3(a[0], 0f, a[1]) * Speed);
+
+        if (_score == _allPickups.Length & !_manualControl)
+        {
+            EndEpisode();
+        }
     }
 }

@@ -7,13 +7,14 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
-/[Rr]ecordings/
+/[Rr]ecordings/ 
 
 # Cache et outils Asset Store
 /Assets/AssetStoreTools*
 /Assets/AddressableAssetsData/*/*.bin*
 /Assets/StreamingAssets/aa.meta
 /Assets/StreamingAssets/aa/*
+/Assets/StoredData*
 
 # Fichiers auto-générés par Visual Studio / Rider / VS Code
 ExportedObj/

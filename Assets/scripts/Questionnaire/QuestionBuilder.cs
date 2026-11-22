@@ -119,10 +119,8 @@ public class QuestionBuilder : MonoBehaviour
     private IEnumerator OnAnswered(string choiceText)
     {
         // Record before advancing
-        if (ExperimentDataHandler.Instance != null)
-        {
-            ExperimentDataHandler.Instance.SaveQuestionnaireResponse(questionnaireID, questions[currentIndex], choiceText);
-        }
+        ExperimentDataHandler.Instance?.SaveQuestionnaireResponse(questionnaireID, questions[currentIndex], choiceText);
+        SessionDataStore.Instance?.RecordAnswer(questionnaireID, currentIndex, questions[currentIndex], choiceText);
 
         // pause then advance
         yield return StartCoroutine(Pause(MainManager.Instance.questionnaireFreezeDuration));
@@ -167,9 +165,7 @@ public class QuestionBuilder : MonoBehaviour
         Debug.Log("[Questionnaire] Complete.");
 
         // Save
-        if (ExperimentDataHandler.Instance != null)
-        {
-            ExperimentDataHandler.Instance.EndSessionBatch();
-        }
+        ExperimentDataHandler.Instance?.EndSessionBatch();
+        SessionDataStore.Instance?.SendToPython();
     }
 }

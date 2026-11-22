@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -29,12 +30,8 @@ public class PythonRunner : MonoBehaviour
 
     [SerializeField] private float[] testValues = { 1f, 2.5f, 4f };
 
-    void Start()
-    {
-        RunTest();
-    }
-
-    // Also available from the component's ⋮ menu in the Inspector during Play mode.
+    // Test from the component's ⋮ menu in the Inspector during Play mode.
+    // (No longer run automatically at Start.) from the component's ⋮ menu in the Inspector during Play mode.
     [ContextMenu("Run Python test")]
     public void RunTest()
     {
@@ -47,10 +44,12 @@ public class PythonRunner : MonoBehaviour
     /// <summary>
     /// Runs the script once: sends `input` as JSON on stdin, parses stdout as JSON.
     /// Blocks until the script finishes. Returns default(TOut) on failure.
+    /// scriptOverride: another script (relative to StreamingAssets) instead of scriptRelativePath.
     /// </summary>
-    public TOut RunPython<TIn, TOut>(TIn input)
+    public TOut RunPython<TIn, TOut>(TIn input, string scriptOverride = null)
     {
-        string scriptPath = Path.Combine(Application.streamingAssetsPath, scriptRelativePath);
+        string relativePath = string.IsNullOrEmpty(scriptOverride) ? scriptRelativePath : scriptOverride;
+        string scriptPath = Path.Combine(Application.streamingAssetsPath, relativePath);
         if (!File.Exists(scriptPath))
         {
             Debug.LogError($"Python script not found: {scriptPath}");
@@ -66,6 +65,11 @@ public class PythonRunner : MonoBehaviour
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
+            // UTF-8 both ways so accented text (French questions/answers) survives;
+            // no byte-order mark, which would break JSON parsing.
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
         };
 
         try
